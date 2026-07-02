@@ -381,6 +381,10 @@ set(COVERAGE_SOURCES VlcMain.cpp)
 # VlcMain.cpp #includes the following files:
 #  V3Error.cpp, V3String.cpp, V3Os.cpp and VlcTop.cpp
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set_source_files_properties(V3Const.cpp PROPERTIES HEADER_FILE_ONLY ON)
+endif()
+
 #
 # Generated sources and headers for the verilator binary
 
@@ -547,6 +551,14 @@ add_executable(
     config_rev.h>
 )
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    if(NOT EXISTS "${FLEX_INCLUDE_DIR}")
+        set(DEVELOPER "/Applications/Xcode.app/Contents/Developer")
+        set(FLEX_INCLUDE_DIR
+            "${DEVELOPER}/Toolchains/XcodeDefault.xctoolchain/usr/include")
+    endif()
+endif()
+
 set_target_properties(
     ${verilator}
     PROPERTIES
@@ -619,3 +631,49 @@ if(WIN32)
 endif()
 
 install(TARGETS ${verilator})
+
+# verilator-config.cmake must be included before calling this function
+function(create_example EXAMPLE_NAME EXAMPLE_FILES EXAMPLE_VFILES EXAMPLE_DIR)
+    add_executable(${EXAMPLE_NAME} ${EXAMPLE_FILES})
+    target_compile_features(${EXAMPLE_NAME} PUBLIC cxx_std_14)
+    add_dependencies(${EXAMPLE_NAME} ${verilator})
+    target_include_directories(${EXAMPLE_NAME}
+        PRIVATE "${EXAMPLE_DIR}/../../include")
+    set_target_properties(${EXAMPLE_NAME} PROPERTIES
+        RELEASE_POSTFIX "_bin"
+        DEBUG_POSTFIX "_bin_dbg"
+    )
+    # Add the Verilated circuit to the target
+    verilate(${EXAMPLE_NAME}
+        INCLUDE_DIRS ${EXAMPLE_DIR}
+        SOURCES ${EXAMPLE_VFILES}
+    )
+endfunction()
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    # Copy binary to ../bin for driver.py to use. Need to
+    # build Release and Debug for ctest to run correctly
+    add_custom_command(
+        TARGET ${verilator}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:${verilator}>" "${srcdir}/../bin/"
+    )
+    # Include the verilate function
+    include(${CMAKE_BINARY_DIR}/../verilator-config.cmake)
+    # Build cmake_hello_c bypassing existing example CMake files
+    set(example_dir "${srcdir}/../examples")
+    create_example(
+        make_hello_c
+        "${example_dir}/make_hello_c/sim_main.cpp"
+        "${example_dir}/make_hello_c/top.v"
+        "${example_dir}/make_hello_c"
+    )
+    # Build cmake_tracing_c
+    create_example(
+        make_tracing_c
+        "${example_dir}/make_tracing_c/sim_main.cpp"
+        "${example_dir}/make_tracing_c/top.v"
+        "${example_dir}/make_tracing_c"
+    )
+endif()

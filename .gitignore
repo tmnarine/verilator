@@ -52,3 +52,5 @@ xrun.history
 
 # Normal CMake build directory
 /build
+# Normal CMake install directory
+/install

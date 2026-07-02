@@ -46,7 +46,7 @@ if(NOT VERILATOR_ROOT)
 endif()
 
 if(NOT VERILATOR_BIN)
-    message(FATAL_ERROR "Cannot find verilator_bin excecutable.")
+    message(FATAL_ERROR "Cannot find verilator_bin executable.")
 endif()
 
 set(verilator_FOUND 1)

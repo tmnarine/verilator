@@ -42,7 +42,7 @@ include(ExternalProject)
 include(FindThreads)
 
 if(NOT WIN32)
-    message(WARNING "CMake support on Linux/OSX is experimental.")
+    message(WARNING "CMake support on Linux/macOS is experimental.")
 endif()
 
 if(WIN32)
@@ -185,3 +185,24 @@ install(
     PATTERN "include/fstcpp/*.[chv]*"
     PATTERN "include/vltstd/*.[chv]*"
 )
+
+# enable_testing() must be called before this function
+function(create_test TEST_NAME TEST_FILES)
+    add_test(
+        NAME ${TEST_NAME}
+        COMMAND ${PYTHON3} driver.py ${TEST_FILES}
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test_regress"
+    )
+endfunction()
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    enable_testing()
+    # Add smoke test first
+    create_test(smoke-test "t/t_a1_first_cc.py t/t_a2_first_sc.py")
+    # Add the rest of the regression tests
+    file(GLOB TESTS_PYTHON "${CMAKE_SOURCE_DIR}/test_regress/t/t_*.py")
+    foreach(test_file ${TESTS_PYTHON})
+        get_filename_component(test_name ${test_file} NAME_WE)
+        create_test("${test_name}" "${test_file}")
+    endforeach()
+endif()
